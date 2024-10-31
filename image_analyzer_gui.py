@@ -22,6 +22,110 @@ class AnalyzerThread(QThread):
         florence_text = florence_result.get('<MORE_DETAILED_CAPTION>', '')
         self.finished.emit(florence_text, keywords)
 
+class StyleSheet:
+    """统一的样式定义"""
+    MAIN_WINDOW = """
+        QMainWindow {
+            background-color: #F7E8D0;  /* 米黄色背景 */
+        }
+    """
+    
+    CENTRAL_WIDGET = """
+        QWidget {
+            background-color: #F7E8D0;
+        }
+    """
+    
+    BUTTON = """
+        QPushButton {
+            background-color: #8B4513;  /* 棕色 */
+            color: #F7E8D0;  /* 米色文字 */
+            border: 2px solid #654321;
+            border-radius: 15px;
+            padding: 8px 16px;
+            font-family: "楷体", KaiTi;
+            font-size: 14pt;
+            min-width: 120px;
+            min-height: 40px;
+        }
+        QPushButton:hover {
+            background-color: #654321;
+            border-color: #8B4513;
+        }
+        QPushButton:pressed {
+            background-color: #543210;
+        }
+        QPushButton:disabled {
+            background-color: #A89080;
+            border-color: #987654;
+        }
+    """
+    
+    KEYWORD_BUTTON = """
+        QPushButton {
+            background-color: #DEB887;  /* 实木色 */
+            color: #4A3728;  /* 深褐色文字 */
+            border: 2px solid #BC8F8F;
+            border-radius: 12px;
+            padding: 5px 10px;
+            font-family: "楷体", KaiTi;
+            font-size: 12pt;
+            margin: 2px;
+        }
+        QPushButton:hover {
+            background-color: #D2B48C;
+            border-color: #8B4513;
+        }
+        QPushButton:checked {
+            background-color: #8B4513;
+            color: #F7E8D0;
+            border-color: #654321;
+        }
+    """
+    
+    SCROLL_AREA = """
+        QScrollArea {
+            border: 2px solid #8B4513;
+            border-radius: 10px;
+            background-color: #FFF5E6;
+        }
+        QScrollBar:horizontal {
+            border: none;
+            background: #F7E8D0;
+            height: 10px;
+            border-radius: 5px;
+        }
+        QScrollBar::handle:horizontal {
+            background: #8B4513;
+            border-radius: 5px;
+            min-width: 20px;
+        }
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+            width: 0px;
+        }
+    """
+    
+    STATUS_LABEL = """
+        QLabel {
+            color: #4A3728;
+            font-family: "楷体", KaiTi;
+            font-size: 12pt;
+            padding: 5px;
+            border: 1px solid #BC8F8F;
+            border-radius: 8px;
+            background-color: #FFF5E6;
+        }
+    """
+    
+    IMAGE_LABEL = """
+        QLabel {
+            border: 3px solid #8B4513;
+            border-radius: 15px;
+            padding: 5px;
+            background-color: #FFF5E6;
+        }
+    """
+
 class KeywordButton(QPushButton):
     """自定义关键词按钮类，支持选中状态"""
     def __init__(self, keyword):
@@ -29,39 +133,11 @@ class KeywordButton(QPushButton):
         self.keyword = keyword
         self.selected = False
         self.setCheckable(True)  # 使按钮可切换
-        self.update_style()
+        self.setStyleSheet(StyleSheet.KEYWORD_BUTTON)
 
     def update_style(self):
-        """更新按钮样式"""
-        if self.selected:
-            self.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: 2px solid #45a049;
-                    border-radius: 10px;
-                    padding: 5px 10px;
-                    margin: 2px;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                    border-color: #408e44;
-                }
-            """)
-        else:
-            self.setStyleSheet("""
-                QPushButton {
-                    background-color: #f0f0f0;
-                    border: 2px solid #c0c0c0;
-                    border-radius: 10px;
-                    padding: 5px 10px;
-                    margin: 2px;
-                }
-                QPushButton:hover {
-                    background-color: #e0e0e0;
-                    border-color: #a0a0a0;
-                }
-            """)
+        """保持使用统一样式"""
+        pass  # 样式由StyleSheet.KEYWORD_BUTTON控制
 
 class PoemTypeDialog(QDialog):
     """诗歌类型选择对话框"""
@@ -104,40 +180,62 @@ class PoemDisplayDialog(QDialog):
         self.poem_text = poem_text
         self.parent = parent
         self.initUI()
+        self.apply_styles()
 
-    def initUI(self):
-        self.setWindowTitle('诗歌展示')
-        self.setMinimumSize(400, 600)  # 设置初始最小大小
-        layout = QVBoxLayout(self)
-
-        # 使用QTextBrowser来显示诗歌
-        text_browser = QTextBrowser()
-        text_browser.setStyleSheet("""
+    def apply_styles(self):
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #F7E8D0;
+            }
             QTextBrowser {
-                background-color: #f5f5dc;
-                border: 2px solid #d4d4c4;
-                border-radius: 10px;
+                background-color: #FFF5E6;
+                border: 2px solid #8B4513;
+                border-radius: 15px;
                 padding: 20px;
                 font-family: "楷体", KaiTi;
                 font-size: 16pt;
+                color: #4A3728;
+            }
+            QPushButton {
+                background-color: #8B4513;
+                color: #F7E8D0;
+                border: 2px solid #654321;
+                border-radius: 15px;
+                padding: 8px 16px;
+                font-family: "楷体", KaiTi;
+                font-size: 14pt;
+                min-width: 120px;
+                min-height: 40px;
+            }
+            QPushButton:hover {
+                background-color: #654321;
+                border-color: #8B4513;
             }
         """)
+
+    def initUI(self):
+        self.setWindowTitle('诗词雅韵')
+        self.setMinimumSize(500, 700)
+        layout = QVBoxLayout(self)
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # 使用QTextBrowser来显示诗歌
+        text_browser = QTextBrowser()
         text_browser.setText(self.poem_text)
         layout.addWidget(text_browser)
 
         # 按钮布局
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
         
-        # 合成图片按钮
         create_image_button = QPushButton('合成图片')
         create_image_button.clicked.connect(self.show_composite_image)
-        button_layout.addWidget(create_image_button)
-
-        # 关闭按钮
         close_button = QPushButton('关闭')
         close_button.clicked.connect(self.accept)
+        
+        button_layout.addWidget(create_image_button)
         button_layout.addWidget(close_button)
-
         layout.addLayout(button_layout)
 
     def show_composite_image(self):
@@ -272,6 +370,18 @@ class ImageAnalyzerWindow(QMainWindow):
         self.selected_keywords = set()  # 存储已选中的关键词
         self.init_models()
         self.initUI()
+        self.apply_styles()
+
+    def apply_styles(self):
+        """应用统一样式"""
+        self.setStyleSheet(StyleSheet.MAIN_WINDOW)
+        self.centralWidget().setStyleSheet(StyleSheet.CENTRAL_WIDGET)
+        self.select_button.setStyleSheet(StyleSheet.BUTTON)
+        self.analyze_button.setStyleSheet(StyleSheet.BUTTON)
+        self.confirm_keywords_button.setStyleSheet(StyleSheet.BUTTON)
+        self.status_label.setStyleSheet(StyleSheet.STATUS_LABEL)
+        self.image_label.setStyleSheet(StyleSheet.IMAGE_LABEL)
+        self.scroll.setStyleSheet(StyleSheet.SCROLL_AREA)
 
     def init_models(self):
         """初始化模型"""
@@ -282,50 +392,53 @@ class ImageAnalyzerWindow(QMainWindow):
             self.status_label = QLabel(f"模型初始化失败：{str(e)}")
 
     def initUI(self):
-        self.setWindowTitle('图像分析器')
+        self.setWindowTitle('诗画意境')  # 更改标题
         self.setGeometry(100, 100, 1000, 800)
 
         # 创建中央部件和主布局
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(20)  # 增加控件间距
+        main_layout.setContentsMargins(30, 30, 30, 30)  # 增加边距
 
         # 创建图片显示区域
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(400, 400)
+        self.image_label.setMinimumSize(500, 500)
         main_layout.addWidget(self.image_label)
 
-        # 创建作按钮
+        # 创建按钮布局
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)  # 按钮间距
         self.select_button = QPushButton('选择图片')
         self.analyze_button = QPushButton('分析图片')
         self.analyze_button.setEnabled(False)
+        self.confirm_keywords_button = QPushButton('创作诗词')
+        self.confirm_keywords_button.setEnabled(False)
+        
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.analyze_button)
+        button_layout.addWidget(self.confirm_keywords_button)
         main_layout.addLayout(button_layout)
 
         # 添加状态标签
         main_layout.addWidget(self.status_label)
 
         # 创建关键词按钮的滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setMinimumHeight(100)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setMinimumHeight(100)
         self.keywords_widget = QWidget()
         self.keywords_layout = QHBoxLayout(self.keywords_widget)
-        scroll.setWidget(self.keywords_widget)
-        main_layout.addWidget(scroll)
-
-        # 添加确定关键词按钮
-        self.confirm_keywords_button = QPushButton('确定关键词')
-        self.confirm_keywords_button.setEnabled(False)
-        button_layout.addWidget(self.confirm_keywords_button)
-        self.confirm_keywords_button.clicked.connect(self.create_poem)
+        self.keywords_layout.setAlignment(Qt.AlignLeft)  # 关键词左对齐
+        self.scroll.setWidget(self.keywords_widget)
+        main_layout.addWidget(self.scroll)
 
         # 连接信号
         self.select_button.clicked.connect(self.select_image)
         self.analyze_button.clicked.connect(self.analyze_image)
+        self.confirm_keywords_button.clicked.connect(self.create_poem)
 
     def select_image(self):
         file_name, _ = QFileDialog.getOpenFileName(
