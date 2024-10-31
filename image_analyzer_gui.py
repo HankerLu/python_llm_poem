@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                           QPushButton, QLabel, QTextEdit, QFileDialog)
+                           QPushButton, QLabel, QFileDialog, QHBoxLayout, QScrollArea)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 import sys
@@ -17,7 +17,6 @@ class AnalyzerThread(QThread):
 
     def run(self):
         florence_result, keywords = analyzer.analyze_image(self.image)
-        # 从字典中提取具体的描述文本
         florence_text = florence_result.get('<MORE_DETAILED_CAPTION>', '')
         self.finished.emit(florence_text, keywords)
 
@@ -25,47 +24,53 @@ class ImageAnalyzerWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.current_image = None
-        # 初始化模型
+        self.keywords_buttons = []  # 存储关键词按钮
         self.init_models()
         self.initUI()
 
     def init_models(self):
         """初始化模型"""
-        self.result_text = QTextEdit()
-        self.result_text.setText("正在初始化模型，请稍候...")
         try:
             analyzer.initialize()
-            self.result_text.setText("模型初始化完成，请选择图片进行分析。")
+            self.status_label = QLabel("模型初始化完成，请选择图片进行分析。")
         except Exception as e:
-            self.result_text.setText(f"模型初始化失败：{str(e)}")
+            self.status_label = QLabel(f"模型初始化失败：{str(e)}")
 
     def initUI(self):
         self.setWindowTitle('图像分析器')
-        self.setGeometry(100, 100, 800, 800)
+        self.setGeometry(100, 100, 1000, 800)
 
-        # 创建中央部件和布局
+        # 创建中央部件和主布局
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
 
-        # 创建控件
+        # 创建图片显示区域
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setMinimumSize(400, 400)
+        main_layout.addWidget(self.image_label)
 
+        # 创建操作按钮
+        button_layout = QHBoxLayout()
         self.select_button = QPushButton('选择图片')
         self.analyze_button = QPushButton('分析图片')
         self.analyze_button.setEnabled(False)
+        button_layout.addWidget(self.select_button)
+        button_layout.addWidget(self.analyze_button)
+        main_layout.addLayout(button_layout)
 
-        self.result_text = QTextEdit()
-        self.result_text.setReadOnly(True)
-        self.result_text.setMinimumHeight(200)
+        # 添加状态标签
+        main_layout.addWidget(self.status_label)
 
-        # 添加控件到布局
-        layout.addWidget(self.image_label)
-        layout.addWidget(self.select_button)
-        layout.addWidget(self.analyze_button)
-        layout.addWidget(self.result_text)
+        # 创建关键词按钮的滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setMinimumHeight(100)
+        self.keywords_widget = QWidget()
+        self.keywords_layout = QHBoxLayout(self.keywords_widget)
+        scroll.setWidget(self.keywords_widget)
+        main_layout.addWidget(scroll)
 
         # 连接信号
         self.select_button.clicked.connect(self.select_image)
@@ -76,30 +81,72 @@ class ImageAnalyzerWindow(QMainWindow):
             self, "选择图片", "", "图片文件 (*.png *.jpg *.jpeg *.bmp)")
         
         if file_name:
-            # 保存PIL Image对象供分析使用
             self.current_image = Image.open(file_name).convert('RGB')
             
-            # 显示图片
             pixmap = QPixmap(file_name)
             scaled_pixmap = pixmap.scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.image_label.setPixmap(scaled_pixmap)
             
             self.analyze_button.setEnabled(True)
-            self.result_text.clear()
+            self.clear_keywords()
+            self.status_label.setText("图片已加载，请点击分析按钮进行分析。")
+
+    def clear_keywords(self):
+        """清除现有的关键词按钮"""
+        for button in self.keywords_buttons:
+            self.keywords_layout.removeWidget(button)
+            button.deleteLater()
+        self.keywords_buttons.clear()
+
+    def create_keyword_button(self, keyword):
+        """创建关键词按钮"""
+        button = QPushButton(keyword)
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #f0f0f0;
+                border: 2px solid #c0c0c0;
+                border-radius: 10px;
+                padding: 5px 10px;
+                margin: 2px;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+                border-color: #a0a0a0;
+            }
+        """)
+        button.clicked.connect(lambda: self.keyword_clicked(keyword))
+        return button
+
+    def keyword_clicked(self, keyword):
+        """处理关键词按钮点击事件"""
+        self.status_label.setText(f"选中关键词: {keyword}")
 
     def analyze_image(self):
         if self.current_image:
             self.analyze_button.setEnabled(False)
-            self.result_text.setText("正在分析中，请稍候...")
+            self.status_label.setText("正在分析中，请稍候...")
+            self.clear_keywords()
             
-            # 创建并启动分析线程
             self.analyzer_thread = AnalyzerThread(self.current_image)
             self.analyzer_thread.finished.connect(self.handle_analysis_result)
             self.analyzer_thread.start()
 
     def handle_analysis_result(self, florence_result, keywords):
-        result_text = f"Florence描述:\n{florence_result}\n\n关键词列表:\n{keywords}"
-        self.result_text.setText(result_text)
+        self.status_label.setText("分析完成！")
+        
+        # 解析关键词字符串并创建按钮
+        try:
+            # 假设关键词格式为 "[关键词1,关键词2,关键词3...]"
+            keywords = keywords.strip('[]').split(',')
+            for keyword in keywords:
+                keyword = keyword.strip()
+                if keyword:
+                    button = self.create_keyword_button(keyword)
+                    self.keywords_layout.addWidget(button)
+                    self.keywords_buttons.append(button)
+        except Exception as e:
+            self.status_label.setText(f"关键词解析错误：{str(e)}")
+        
         self.analyze_button.setEnabled(True)
 
 def main():
