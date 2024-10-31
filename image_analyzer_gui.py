@@ -103,12 +103,11 @@ class PoemDisplayDialog(QDialog):
         super().__init__(parent)
         self.poem_text = poem_text
         self.parent = parent
-        self.composite_image_label = None  # 用于显示合成图片
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle('诗歌展示')
-        self.setMinimumSize(800, 1000)  # 增加窗口大小以适应图片显示
+        self.setMinimumSize(400, 600)  # 设置初始最小大小
         layout = QVBoxLayout(self)
 
         # 使用QTextBrowser来显示诗歌
@@ -126,18 +125,12 @@ class PoemDisplayDialog(QDialog):
         text_browser.setText(self.poem_text)
         layout.addWidget(text_browser)
 
-        # 添加图片显示标签
-        self.composite_image_label = QLabel()
-        self.composite_image_label.setAlignment(Qt.AlignCenter)
-        self.composite_image_label.hide()  # 初始时隐藏
-        layout.addWidget(self.composite_image_label)
-
         # 按钮布局
         button_layout = QHBoxLayout()
         
         # 合成图片按钮
         create_image_button = QPushButton('合成图片')
-        create_image_button.clicked.connect(self.create_poem_image)
+        create_image_button.clicked.connect(self.show_composite_image)
         button_layout.addWidget(create_image_button)
 
         # 关闭按钮
@@ -147,80 +140,129 @@ class PoemDisplayDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-    def create_poem_image(self):
-        """将诗歌合成到原始图片上并显示"""
+    def show_composite_image(self):
+        """显示合成图片的新窗口"""
         try:
-            if not self.parent.current_image:
-                raise ValueError("未找到原始图片")
-
-            # 获取原始图片
-            original_image = self.parent.current_image.copy()
-
-            # 调整图片大小，确保有足够空间放置文字
-            target_width = 800
-            target_height = 1000
-            
-            # 计算调整后的图片尺寸，保持原始比例
-            width_ratio = target_width / original_image.width
-            height_ratio = target_height / original_image.height
-            ratio = min(width_ratio, height_ratio)
-            
-            new_width = int(original_image.width * ratio)
-            new_height = int(original_image.height * ratio)
-            
-            # 创建新的白色背景图片
-            new_image = Image.new('RGB', (target_width, target_height), 'white')
-            
-            # 调整原始图片大小
-            resized_image = original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
-            # 将调整后的图片粘贴到新图片的中心位置
-            x_offset = (target_width - new_width) // 2
-            y_offset = (target_height - new_height) // 2
-            new_image.paste(resized_image, (x_offset, y_offset))
-
-            # 创建绘图对象
-            draw = ImageDraw.Draw(new_image)
-
-            # 尝试加载字体
-            try:
-                if os.name == 'nt':
-                    font_path = "C:\\Windows\\Fonts\\simkai.ttf"
-                else:
-                    font_path = "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
-                font = ImageFont.truetype(font_path, 30)
-            except Exception:
-                font = ImageFont.load_default()
-
-            # 计算文字位置
-            text_y = y_offset + new_height + 20
-            
-            # 分行绘制诗歌文本
-            lines = self.poem_text.split('\n')
-            for line in lines:
-                if line.strip():
-                    text_width = draw.textlength(line, font=font)
-                    text_x = (target_width - text_width) // 2
-                    draw.text((text_x, text_y), line, fill='black', font=font)
-                    text_y += 40
-
-            # 将PIL图像转换为QPixmap并显示
-            img_byte_arr = io.BytesIO()
-            new_image.save(img_byte_arr, format='PNG')
-            img_byte_arr = img_byte_arr.getvalue()
-
-            pixmap = QPixmap()
-            pixmap.loadFromData(img_byte_arr)
-            
-            # 调整图片大小以适应显示区域
-            scaled_pixmap = pixmap.scaled(800, 1000, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            
-            # 显示合成后的图片
-            self.composite_image_label.setPixmap(scaled_pixmap)
-            self.composite_image_label.show()
-
+            composite_image = self.create_poem_image()
+            if composite_image:
+                image_dialog = ImageDisplayDialog(composite_image, self)
+                image_dialog.exec_()
         except Exception as e:
             QMessageBox.critical(self, "错误", f"创建图片失败：{str(e)}")
+
+    def create_poem_image(self):
+        """将诗歌合成到原始图片上"""
+        if not self.parent.current_image:
+            raise ValueError("未找到原始图片")
+
+        # 获取原始图片
+        original_image = self.parent.current_image.copy()
+
+        # 调整图片大小，确保有足够空间放置文字
+        target_width = 800
+        target_height = 1000
+        
+        # 计算调整后的图片尺寸，保持原始比例
+        width_ratio = target_width / original_image.width
+        height_ratio = (target_height * 0.7) / original_image.height  # 留30%的空间给文字
+        ratio = min(width_ratio, height_ratio)
+        
+        new_width = int(original_image.width * ratio)
+        new_height = int(original_image.height * ratio)
+        
+        # 创建新的白色背景图片
+        new_image = Image.new('RGB', (target_width, target_height), 'white')
+        
+        # 调整原始图片大小
+        resized_image = original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 将调整后的图片粘贴到新图片的中心位置
+        x_offset = (target_width - new_width) // 2
+        y_offset = (target_height - new_height) // 3  # 将图片放在上部三分之一处
+        new_image.paste(resized_image, (x_offset, y_offset))
+
+        # 创建绘图对象
+        draw = ImageDraw.Draw(new_image)
+
+        # 尝试加载字体
+        try:
+            if os.name == 'nt':
+                font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+            else:
+                font_path = "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
+            font = ImageFont.truetype(font_path, 40)  # 增大字体大小
+        except Exception:
+            font = ImageFont.load_default()
+
+        # 计算文字位置，从图片下方开始
+        text_y = y_offset + new_height + 50  # 增加与图片的间距
+        
+        # 分行绘制诗歌文本
+        lines = self.poem_text.split('\n')
+        for line in lines:
+            if line.strip():
+                # 计算文本宽度以居中显示
+                text_width = draw.textlength(line, font=font)
+                text_x = (target_width - text_width) // 2
+                # 绘制文字阴影效果
+                draw.text((text_x+1, text_y+1), line, fill='gray', font=font)
+                # 绘制主要文字
+                draw.text((text_x, text_y), line, fill='black', font=font)
+                text_y += 60  # 增加行间距
+
+        return new_image
+
+class ImageDisplayDialog(QDialog):
+    """图片显示对话框"""
+    def __init__(self, image, parent=None):
+        super().__init__(parent)
+        self.image = image
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('合成图片')
+        layout = QVBoxLayout(self)
+
+        # 创建标签显示图片
+        label = QLabel()
+        label.setAlignment(Qt.AlignCenter)
+
+        # 将PIL图像转换为QPixmap
+        img_byte_arr = io.BytesIO()
+        self.image.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        pixmap = QPixmap()
+        pixmap.loadFromData(img_byte_arr)
+
+        # 获取屏幕大小
+        screen = QApplication.primaryScreen().geometry()
+        max_width = screen.width() * 0.8  # 屏幕宽度的80%
+        max_height = screen.height() * 0.8  # 屏幕高度的80%
+
+        # 计算缩放比例
+        scale_width = max_width / pixmap.width()
+        scale_height = max_height / pixmap.height()
+        scale = min(scale_width, scale_height)
+
+        # 如果图片太大，进行缩放
+        if scale < 1:
+            pixmap = pixmap.scaled(
+                int(pixmap.width() * scale),
+                int(pixmap.height() * scale),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+
+        # 设置图片和窗口大小
+        label.setPixmap(pixmap)
+        self.resize(pixmap.width() + 40, pixmap.height() + 40)  # 添加一些边距
+        layout.addWidget(label)
+
+        # 关闭按钮
+        close_button = QPushButton('关闭')
+        close_button.clicked.connect(self.accept)
+        layout.addWidget(close_button)
 
 class ImageAnalyzerWindow(QMainWindow):
     def __init__(self):
@@ -254,7 +296,7 @@ class ImageAnalyzerWindow(QMainWindow):
         self.image_label.setMinimumSize(400, 400)
         main_layout.addWidget(self.image_label)
 
-        # 创建���作按钮
+        # 创建作按钮
         button_layout = QHBoxLayout()
         self.select_button = QPushButton('选择图片')
         self.analyze_button = QPushButton('分析图片')

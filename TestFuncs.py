@@ -14,26 +14,31 @@ class ImageAnalyzer:
         
     def initialize(self):
         """初始化模型和客户端"""
-        # 初始化智谱AI客户端
-        self.client = ZhipuAI(api_key="5970c032a7158d0f72d69890e806c912.KOAJqVp6cvhp7LS3")
-        
-        # 设置设备和数据类型
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        
-        # 加载Florence模型
-        self.model = AutoModelForCausalLM.from_pretrained(
-            "microsoft/Florence-2-large", 
-            torch_dtype=self.torch_dtype, 
-            trust_remote_code=True
-        ).to(self.device)
-        
-        self.processor = AutoProcessor.from_pretrained(
-            "microsoft/Florence-2-large", 
-            trust_remote_code=True
-        )
-        
-        return True
+        try:
+            # 初始化智谱AI客户端
+            self.client = ZhipuAI(api_key="5970c032a7158d0f72d69890e806c912.KOAJqVp6cvhp7LS3")
+            
+            # 设置设备和数据类型
+            self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+            
+            # 加载Florence模型
+            self.model = AutoModelForCausalLM.from_pretrained(
+                "microsoft/Florence-2-large", 
+                torch_dtype=self.torch_dtype, 
+                trust_remote_code=True
+            ).to(self.device)
+            
+            self.processor = AutoProcessor.from_pretrained(
+                "microsoft/Florence-2-large", 
+                trust_remote_code=True
+            )
+            
+            return True
+            
+        except Exception as e:
+            print(f"初始化失败: {str(e)}")
+            return False
 
     def run_florence(self, image, task_prompt='<MORE_DETAILED_CAPTION>', text_input=''):
         """运行Florence模型进行图像分析"""
