@@ -319,7 +319,11 @@ class ImageDisplayDialog(QDialog):
 
     def initUI(self):
         self.setWindowTitle('合成图片')
-        layout = QVBoxLayout(self)
+        
+        # 使用水平布局
+        main_layout = QHBoxLayout(self)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
 
         # 创建标签显示图片
         label = QLabel()
@@ -352,15 +356,40 @@ class ImageDisplayDialog(QDialog):
                 Qt.SmoothTransformation
             )
 
-        # 设置图片和窗口大小
+        # 设置图片
         label.setPixmap(pixmap)
-        self.resize(pixmap.width() + 40, pixmap.height() + 40)  # 添加一些边距
-        layout.addWidget(label)
+        main_layout.addWidget(label)
 
+        # 创建右侧按钮布局
+        button_layout = QVBoxLayout()
+        button_layout.setAlignment(Qt.AlignTop)  # 按钮靠上对齐
+        
         # 关闭按钮
         close_button = QPushButton('关闭')
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #8B4513;
+                color: #F7E8D0;
+                border: 2px solid #654321;
+                border-radius: 15px;
+                padding: 8px 16px;
+                font-family: "楷体", KaiTi;
+                font-size: 14pt;
+                min-width: 100px;
+                min-height: 40px;
+            }
+            QPushButton:hover {
+                background-color: #654321;
+                border-color: #8B4513;
+            }
+        """)
         close_button.clicked.connect(self.accept)
-        layout.addWidget(close_button)
+        button_layout.addWidget(close_button)
+        
+        main_layout.addLayout(button_layout)
+
+        # 设置窗口大小
+        self.resize(pixmap.width() + 150, pixmap.height() + 40)  # 增加宽度以容纳按钮
 
 class ImageAnalyzerWindow(QMainWindow):
     def __init__(self):
