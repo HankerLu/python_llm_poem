@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                           QPushButton, QLabel, QFileDialog, QHBoxLayout, QScrollArea)
+                           QPushButton, QLabel, QFileDialog, QHBoxLayout, QScrollArea,
+                           QDialog, QRadioButton, QButtonGroup, QTextBrowser)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 import sys
@@ -20,11 +21,119 @@ class AnalyzerThread(QThread):
         florence_text = florence_result.get('<MORE_DETAILED_CAPTION>', '')
         self.finished.emit(florence_text, keywords)
 
+class KeywordButton(QPushButton):
+    """自定义关键词按钮类，支持选中状态"""
+    def __init__(self, keyword):
+        super().__init__(keyword)
+        self.keyword = keyword
+        self.selected = False
+        self.setCheckable(True)  # 使按钮可切换
+        self.update_style()
+
+    def update_style(self):
+        """更新按钮样式"""
+        if self.selected:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: 2px solid #45a049;
+                    border-radius: 10px;
+                    padding: 5px 10px;
+                    margin: 2px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                    border-color: #408e44;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #f0f0f0;
+                    border: 2px solid #c0c0c0;
+                    border-radius: 10px;
+                    padding: 5px 10px;
+                    margin: 2px;
+                }
+                QPushButton:hover {
+                    background-color: #e0e0e0;
+                    border-color: #a0a0a0;
+                }
+            """)
+
+class PoemTypeDialog(QDialog):
+    """诗歌类型选择对话框"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.selected_type = None
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('选择诗歌体裁')
+        layout = QVBoxLayout(self)
+
+        # 创建诗歌类型选项
+        self.button_group = QButtonGroup(self)
+        poem_types = [
+            '五言绝句', '七言绝句',
+            '五言律诗', '七言律诗',
+            '五言古诗', '七言古诗',
+            '词(婉约)', '词(豪放)'
+        ]
+
+        for i, type_name in enumerate(poem_types):
+            radio = QRadioButton(type_name)
+            layout.addWidget(radio)
+            self.button_group.addButton(radio, i)
+
+        # 确认按钮
+        confirm_button = QPushButton('确认')
+        confirm_button.clicked.connect(self.accept)
+        layout.addWidget(confirm_button)
+
+    def get_selected_type(self):
+        selected_button = self.button_group.checkedButton()
+        return selected_button.text() if selected_button else None
+
+class PoemDisplayDialog(QDialog):
+    """诗歌展示对话框"""
+    def __init__(self, poem_text, parent=None):
+        super().__init__(parent)
+        self.poem_text = poem_text
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('诗歌展示')
+        self.setMinimumSize(400, 300)
+        layout = QVBoxLayout(self)
+
+        # 使用QTextBrowser来显示诗歌，支持富文本
+        text_browser = QTextBrowser()
+        text_browser.setStyleSheet("""
+            QTextBrowser {
+                background-color: #f5f5dc;
+                border: 2px solid #d4d4c4;
+                border-radius: 10px;
+                padding: 20px;
+                font-family: "楷体", KaiTi;
+                font-size: 16pt;
+            }
+        """)
+        text_browser.setText(self.poem_text)
+        layout.addWidget(text_browser)
+
+        # 关闭按钮
+        close_button = QPushButton('关闭')
+        close_button.clicked.connect(self.accept)
+        layout.addWidget(close_button)
+
 class ImageAnalyzerWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.current_image = None
         self.keywords_buttons = []  # 存储关键词按钮
+        self.selected_keywords = set()  # 存储已选中的关键词
         self.init_models()
         self.initUI()
 
@@ -72,6 +181,12 @@ class ImageAnalyzerWindow(QMainWindow):
         scroll.setWidget(self.keywords_widget)
         main_layout.addWidget(scroll)
 
+        # 添加确定关键词按钮
+        self.confirm_keywords_button = QPushButton('确定关键词')
+        self.confirm_keywords_button.setEnabled(False)
+        button_layout.addWidget(self.confirm_keywords_button)
+        self.confirm_keywords_button.clicked.connect(self.create_poem)
+
         # 连接信号
         self.select_button.clicked.connect(self.select_image)
         self.analyze_button.clicked.connect(self.analyze_image)
@@ -97,29 +212,34 @@ class ImageAnalyzerWindow(QMainWindow):
             self.keywords_layout.removeWidget(button)
             button.deleteLater()
         self.keywords_buttons.clear()
+        self.selected_keywords.clear()  # 清除选中的关键词记录
+        self.confirm_keywords_button.setEnabled(False)
 
     def create_keyword_button(self, keyword):
         """创建关键词按钮"""
-        button = QPushButton(keyword)
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: #f0f0f0;
-                border: 2px solid #c0c0c0;
-                border-radius: 10px;
-                padding: 5px 10px;
-                margin: 2px;
-            }
-            QPushButton:hover {
-                background-color: #e0e0e0;
-                border-color: #a0a0a0;
-            }
-        """)
-        button.clicked.connect(lambda: self.keyword_clicked(keyword))
+        button = KeywordButton(keyword)
+        button.clicked.connect(lambda: self.keyword_clicked(button))
         return button
 
-    def keyword_clicked(self, keyword):
+    def keyword_clicked(self, button):
         """处理关键词按钮点击事件"""
-        self.status_label.setText(f"选中关键词: {keyword}")
+        button.selected = button.isChecked()
+        button.update_style()
+        
+        if button.selected:
+            self.selected_keywords.add(button.keyword)
+        else:
+            self.selected_keywords.discard(button.keyword)
+        
+        # 更新状态标签显示所有选中的关键词
+        if self.selected_keywords:
+            selected_text = "已选中: " + ", ".join(sorted(self.selected_keywords))
+            self.status_label.setText(selected_text)
+        else:
+            self.status_label.setText("未选中任何关键词")
+        
+        # 启用/禁用确定关键词按钮
+        self.confirm_keywords_button.setEnabled(len(self.selected_keywords) > 0)
 
     def analyze_image(self):
         if self.current_image:
@@ -134,9 +254,8 @@ class ImageAnalyzerWindow(QMainWindow):
     def handle_analysis_result(self, florence_result, keywords):
         self.status_label.setText("分析完成！")
         
-        # 解析关键词字符串并创建按钮
         try:
-            # 假设关键词格式为 "[关键词1,关键词2,关键词3...]"
+            # 解析关键词字符串并创建按钮
             keywords = keywords.strip('[]').split(',')
             for keyword in keywords:
                 keyword = keyword.strip()
@@ -148,6 +267,28 @@ class ImageAnalyzerWindow(QMainWindow):
             self.status_label.setText(f"关键词解析错误：{str(e)}")
         
         self.analyze_button.setEnabled(True)
+
+    def create_poem(self):
+        """处理诗歌创作流程"""
+        if not self.selected_keywords:
+            self.status_label.setText("请先选择关键词")
+            return
+
+        # 显示诗歌类型选择对话框
+        dialog = PoemTypeDialog(self)
+        if dialog.exec_():
+            poem_type = dialog.get_selected_type()
+            if poem_type:
+                self.status_label.setText(f"正在创作{poem_type}...")
+                try:
+                    # 创建诗歌
+                    poem = analyzer.create_poem(self.selected_keywords, poem_type)
+                    # 显示诗歌
+                    display_dialog = PoemDisplayDialog(poem, self)
+                    display_dialog.exec_()
+                    self.status_label.setText("诗歌创作完成")
+                except Exception as e:
+                    self.status_label.setText(f"诗歌创作失败：{str(e)}")
 
 def main():
     app = QApplication(sys.argv)

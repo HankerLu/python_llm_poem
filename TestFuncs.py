@@ -87,5 +87,27 @@ class ImageAnalyzer:
         keywords = self.run_zhipu(florence_result)
         return florence_result, keywords
 
+    def create_poem(self, keywords, poem_type):
+        """使用智谱AI创作诗歌"""
+        if not self.client:
+            raise RuntimeError("智谱AI客户端未初始化，请先调用initialize()")
+            
+        prompt = f"""请根据以下关键词，创作一首{poem_type}。
+关键词：{', '.join(keywords)}
+要求：
+1. 严格按照{poem_type}的格式创作
+2. 必须包含给定的关键词
+3. 诗歌要意境优美，紧扣关键词
+请直接返回诗歌内容，无需其他解释。"""
+
+        response = self.client.chat.completions.create(
+            model="glm-4",
+            messages=[
+                {"role": "system", "content": "你是一个专业的古典诗词创作助手"},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+
 # 创建全局实例
 analyzer = ImageAnalyzer()
